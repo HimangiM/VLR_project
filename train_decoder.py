@@ -12,11 +12,10 @@ from matplotlib import pyplot as plt
 from utils import *
 import argparse
 from custom_datasets import Trainset, Testset
-
-
+from torch.autograd import Variable 
 
 class Decoder(nn.Module):
-    def __init__(self, latent_dim):
+    def __init__(self, num_samples, latent_dim):
         super().__init__()
         self.latent_dim = latent_dim
 
@@ -47,57 +46,46 @@ class Decoder(nn.Module):
             nn.ReLU(),
             nn.Conv2d(32, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         )
+        #self.Z = Variable(torch.randn((num_samples, latent_dim)), requires_grad = True)
+        self.Z = torch.nn.Parameter(torch.normal(0, 0.01, (num_samples, latent_dim)))
 
-    def forward(self, z):
+    def forward(self, idx):
         #TODO 2.1.1: forward pass through the network, first through self.fc, then self.deconvs.
+        z = self.Z[idx].cuda()
         x = self.fc(z)
-        x = x.view(-1, 256,4,4)
+        x = x.view(-1, 256, 4, 4)
         x = self.deconvs(x)
-        return x
+        return x, z
 
-
-
-
-
-
-def run_train_epoch(model, Z, train_loader, optimizer):
+def run_train_epoch(model, train_loader, optimizer):
     model.train()
     all_metrics = []
     for x, _ , idx in train_loader:
         x = x.cuda()
-        z_idx = Z[idx].cuda()
-        z_inp = torch.nn.Parameter(z_idx, requires_grad=True).cuda()
-        optimizer.add_param_group({"params": z_inp})
-        pred = model(z_inp)
-        loss = nn.MSELoss(reduction = 'sum')(pred, x)  / x.shape[0]
-        _metric = OrderedDict(recon_loss=loss)
+        pred, z = model(idx)
+        recon_loss = nn.MSELoss(reduction = 'sum')(pred, x)  / x.shape[0]
+        gauss_loss = torch.sum(torch.norm(z, dim = 1))
+        loss = recon_loss + gauss_loss 
+        _metric = OrderedDict(recon_loss=recon_loss)
         all_metrics.append(_metric)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
     return avg_dict(all_metrics)
 
-
-
-
 def main(log_dir,  num_epochs = 20, batch_size = 256, latent_size = 256, lr = 1e-3, eval_interval = 5):
     train_set = Trainset()
     test_set = Testset()
     len_train_set = train_set.__len__()
     mean = torch.ones(len_train_set, latent_size)
-    std = torch.ones(len_train_set, latent_size)
-    Z = torch.normal(mean= mean, std= std).cuda()
-    model = Decoder(latent_size).cuda()
+    model = Decoder(len_train_set, latent_size).cuda()
     train_loader, val_loader = get_dataloaders(train_set, test_set, batch_size)
     optimizer = optim.Adam(model.parameters(), lr=lr) 
-    #vis_x,_, vis_idx = next(iter(train_loader))[:36]
     for epoch in range(num_epochs):
         print('epoch', epoch)
-        train_metrics = run_train_epoch(model, Z, train_loader, optimizer)
+        train_metrics = run_train_epoch(model, train_loader, optimizer)
         if (epoch+1)%eval_interval == 0:
             print(epoch, train_metrics)
-            #vis_recons(model, vis_x, vis_idx, log_dir+ '/epoch_'+str(epoch))
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
