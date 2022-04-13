@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 from utils import *
 import argparse
 from custom_datasets import Trainset, Testset
-from torch.autograd import Variable 
+from torch.autograd import Variable
+import wandb 
 
 class Decoder(nn.Module):
     def __init__(self, num_samples, latent_dim):
@@ -84,8 +85,24 @@ def main(log_dir,  num_epochs = 20, batch_size = 256, latent_size = 256, lr = 1e
     for epoch in range(num_epochs):
         print('epoch', epoch)
         train_metrics = run_train_epoch(model, train_loader, optimizer)
-        if (epoch+1)%eval_interval == 0:
-            print(epoch, train_metrics)
+        with torch.no_grad():
+            model.eval()
+            orig_img, _, _  = train_set.__getitem__(0)
+            orig_img = orig_img.detach().cpu().numpy()
+            #print(orig_img.shape)
+            recreated_img, _ = model([0])
+            recreated_img = recreated_img[0].detach().cpu().numpy()
+            #print(recreated_img.shape)
+            image_orig = wandb.Image(np.transpose(orig_img, (2, 1, 0)), caption = 'Original Image')
+            wandb.log({'original_image': image_orig})
+
+            image_recreat = wandb.Image(np.transpose(recreated_img, (2, 1, 0)), caption = 'Recreated Image')
+            wandb.log({'recreated image': image_recreat})
+
+            model.train()
+        
+            if (epoch+1)%eval_interval == 0:
+                print(epoch, train_metrics)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -93,9 +110,10 @@ if __name__ == '__main__':
     parser.add_argument('--latent_size', type=int, default=128)
     parser.add_argument('--eval_interval', type=int, default= 1)
     parser.add_argument('--batch_size', type=int, default=256, help='The number of images in a batch.')
-    parser.add_argument('--lr', type=float, default=0.001, help='The learning rate (default 0.001)')
+    parser.add_argument('--lr', type=float, default=0.0003, help='The learning rate (default 0.001)')
 
     parser.add_argument('--log_dir', type=str, default="exp", help='The name of the log dir')
     args = parser.parse_args()
 
+    wandb.init(project="16_824_project", entity = "ayushpandey34", name = 'plot_metrics', reinit=True)
     main(args.log_dir,  num_epochs = args.num_epochs,  batch_size = args.batch_size, latent_size = args.latent_size, lr = args.lr, eval_interval = args.eval_interval)
