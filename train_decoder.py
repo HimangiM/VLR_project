@@ -13,7 +13,9 @@ from utils import *
 import argparse
 from custom_datasets import Trainset, Testset
 from torch.autograd import Variable
-import wandb 
+import wandb
+from PIL import Image
+import PIL
 
 class Decoder(nn.Module):
     def __init__(self, num_samples, latent_dim):
@@ -64,7 +66,7 @@ def run_train_epoch(model, train_loader, optimizer):
     for x, _ , idx in train_loader:
         x = x.cuda()
         pred, z = model(idx)
-        recon_loss = nn.MSELoss(reduction = 'sum')(pred, x)  / x.shape[0]
+        recon_loss = nn.MSELoss(reduction = 'sum')(pred, x) / x.shape[0]
         gauss_loss = torch.sum(torch.norm(z, dim = 1))
         loss = recon_loss + gauss_loss 
         _metric = OrderedDict(recon_loss=recon_loss)
@@ -73,6 +75,17 @@ def run_train_epoch(model, train_loader, optimizer):
         loss.backward()
         optimizer.step()
     return avg_dict(all_metrics)
+
+def run_val(model, val_loader, epoch=-1):
+    """Evaluate model on test dataset."""
+    model.eval()
+    with torch.no_grad():
+        for x, _, idx in val_loader:
+            x = x.cuda()
+            pred, _ = model(idx)
+            recon_loss = nn.MSELoss(reduction = 'sum')(pred.detach(), x) / x.shape[0]
+
+        print(f'Validation set: Epoch={epoch}, Loss:{recon_loss}')
 
 def main(log_dir,  num_epochs = 20, batch_size = 256, latent_size = 256, lr = 1e-3, eval_interval = 5):
     train_set = Trainset()
@@ -83,26 +96,39 @@ def main(log_dir,  num_epochs = 20, batch_size = 256, latent_size = 256, lr = 1e
     train_loader, val_loader = get_dataloaders(train_set, test_set, batch_size)
     optimizer = optim.Adam(model.parameters(), lr=lr) 
     for epoch in range(num_epochs):
-        print('epoch', epoch)
+
         train_metrics = run_train_epoch(model, train_loader, optimizer)
-        with torch.no_grad():
-            model.eval()
-            orig_img, _, _  = train_set.__getitem__(0)
-            orig_img = orig_img.detach().cpu().numpy()
-            #print(orig_img.shape)
-            recreated_img, _ = model([0])
-            recreated_img = recreated_img[0].detach().cpu().numpy()
-            #print(recreated_img.shape)
-            image_orig = wandb.Image(np.transpose(orig_img, (2, 1, 0)), caption = 'Original Image')
-            wandb.log({'original_image': image_orig})
 
-            image_recreat = wandb.Image(np.transpose(recreated_img, (2, 1, 0)), caption = 'Recreated Image')
-            wandb.log({'recreated image': image_recreat})
+        print('Train', epoch, train_metrics)
 
-            model.train()
-        
-            if (epoch+1)%eval_interval == 0:
-                print(epoch, train_metrics)
+        if epoch % 10 == 0:
+            run_val(model, val_loader, epoch=epoch)
+
+        if epoch % 10 == 0:
+            with torch.no_grad():
+                model.eval()
+                orig_img_tensor, _, _  = train_set.__getitem__(0)
+                orig_img = orig_img_tensor.detach().cpu().numpy()
+                #print(orig_img.shape)
+                recreated_img_tensor, _ = model([0])
+                recreated_img = recreated_img_tensor[0].detach().cpu().numpy()
+                #print(recreated_img.shape)
+                if args.wandb:
+                    image_orig = wandb.Image(np.transpose(orig_img, (2, 1, 0)), caption = 'Original Image')
+                    wandb.log({'original_image': image_orig})
+
+                    image_recreat = wandb.Image(np.transpose(recreated_img, (2, 1, 0)), caption = 'Recreated Image')
+                    wandb.log({'recreated image': image_recreat})
+                else:
+                    img_orig_pil = tensor_to_PIL(orig_img_tensor)
+                    img_orig_pil.save(f'input_{epoch}.png')
+
+                    recons_img = tensor_to_PIL(recreated_img_tensor[0])
+                    recons_img.save(f'output_{epoch}.png')
+
+                model.train()
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -111,9 +137,10 @@ if __name__ == '__main__':
     parser.add_argument('--eval_interval', type=int, default= 1)
     parser.add_argument('--batch_size', type=int, default=256, help='The number of images in a batch.')
     parser.add_argument('--lr', type=float, default=0.0003, help='The learning rate (default 0.001)')
-
     parser.add_argument('--log_dir', type=str, default="exp", help='The name of the log dir')
+    parser.add_argument('--wandb', default=False, action="store_true")
     args = parser.parse_args()
 
-    wandb.init(project="16_824_project", entity = "ayushpandey34", name = 'plot_metrics', reinit=True)
+    if args.wandb:
+        wandb.init(project="16_824_project", entity = "ayushpandey34", name = 'plot_metrics', reinit=True)
     main(args.log_dir,  num_epochs = args.num_epochs,  batch_size = args.batch_size, latent_size = args.latent_size, lr = args.lr, eval_interval = args.eval_interval)

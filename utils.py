@@ -45,3 +45,21 @@ def vis_recons(model, x, z, _file):
     reconstructions = reconstructions.permute(0, 2, 3, 1).cpu().numpy() * 255
 
     save_samples(reconstructions, _file+'_recons.png')
+
+
+
+def tensor_to_PIL(image):
+    """
+    converts a tensor normalized image (imagenet mean & std) into a PIL RGB image
+    will not work with batches (if batch size is 1, squeeze before using this)
+    """
+    inv_normalize = transforms.Normalize(
+        mean=[-0.485/0.229, -0.456/0.224, -0.406/0.255],
+        std=[1/0.229, 1/0.224, 1/0.255],
+    )
+
+    inv_tensor = inv_normalize(image)
+    inv_tensor = torch.clamp(inv_tensor, 0, 1)
+    original_image = transforms.ToPILImage()(inv_tensor).convert("RGB")
+
+    return original_image
