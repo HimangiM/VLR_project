@@ -94,7 +94,7 @@ def main(log_dir,  num_epochs = 20, batch_size = 256, latent_size = 256, lr = 1e
     mean = torch.ones(len_train_set, latent_size)
     model = Decoder(len_train_set, latent_size).cuda()
     train_loader, val_loader = get_dataloaders(train_set, test_set, batch_size)
-    optimizer = optim.Adam(model.parameters(), lr=lr) 
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     for epoch in range(num_epochs):
 
         train_metrics = run_train_epoch(model, train_loader, optimizer)
