@@ -20,10 +20,6 @@ class Decoder(nn.Module):
         super().__init__()
         self.latent_dim = latent_dim
 
-        #TODO 2.1.1: fill in self.base_size
-        self.base_size = 256*4*4
-        self.fc = nn.Linear(latent_dim, np.prod(self.base_size))
-        
         """
         TODO 2.1.1 : Fill in self.deconvs following the given architecture 
         Sequential(
@@ -37,6 +33,9 @@ class Decoder(nn.Module):
                 (7): Conv2d(32, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
             )
         """
+        
+        self.base_size = 256*4*4
+        self.fc = nn.Linear(latent_dim, np.prod(self.base_size))
         self.deconvs = nn.Sequential(
             nn.ReLU(),
             nn.ConvTranspose2d(256, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1)),
@@ -47,7 +46,27 @@ class Decoder(nn.Module):
             nn.ReLU(),
             nn.Conv2d(32, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         )
-        #self.Z = Variable(torch.randn((num_samples, latent_dim)), requires_grad = True)
+
+        """
+        self.deconvs = nn.Sequential(nn.Linear(latent_dim, 512),
+                                     nn.ReLU(),
+                                     nn.Linear(512, 512),
+                                     nn.ReLU(),
+                                     nn.Linear(512, 512),
+                                     nn.ReLU(),
+                                     nn.Linear(512, 512),
+                                     nn.ReLU(),
+                                     nn.Linear(512, 512),
+                                     nn.ReLU(),
+                                     nn.Linear(512, 512),
+                                     nn.ReLU(),
+                                     nn.Linear(512, 512),
+                                     nn.ReLU(),
+                                     nn.Linear(512, 32 * 32 * 3),
+                                     nn.Tanh())
+
+        self.Z = torch.nn.Parameter(torch.normal(0, 1, (num_samples, latent_dim)))
+        """
         self.Z = torch.nn.Parameter(torch.normal(0, 0.01, (num_samples, latent_dim)))
 
     def forward(self, idx):
@@ -56,6 +75,9 @@ class Decoder(nn.Module):
         x = self.fc(z)
         x = x.view(-1, 256, 4, 4)
         x = self.deconvs(x)
+        #x = self.deconvs(z)
+        x = x.view(-1, 3, 32, 32)
+
         return x, z
 
 def run_train_epoch(model, train_loader, optimizer):
@@ -65,8 +87,9 @@ def run_train_epoch(model, train_loader, optimizer):
         x = x.cuda()
         pred, z = model(idx)
         recon_loss = nn.MSELoss(reduction = 'sum')(pred, x)  / x.shape[0]
-        gauss_loss = torch.sum(torch.norm(z, dim = 1))
-        loss = recon_loss + gauss_loss 
+        #recon_loss = nn.L1Loss(reduction = 'sum')(pred, x) / x.shape[0]
+        gauss_loss = torch.sum(torch.norm(z, dim = 1)) / x.shape[0]
+        loss = recon_loss + gauss_loss
         _metric = OrderedDict(recon_loss=recon_loss)
         all_metrics.append(_metric)
         optimizer.zero_grad()
@@ -113,7 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.0003, help='The learning rate (default 0.001)')
 
     parser.add_argument('--log_dir', type=str, default="exp", help='The name of the log dir')
-    args = parser.parse_args()
+    args = parser.parse_args()      
 
-    wandb.init(project="16_824_project", entity = "ayushpandey34", name = 'plot_metrics', reinit=True)
+    wandb.init(project="16_824_project", entity = "ayushpandey34", name = 'std_equals_1', reinit=True)
     main(args.log_dir,  num_epochs = args.num_epochs,  batch_size = args.batch_size, latent_size = args.latent_size, lr = args.lr, eval_interval = args.eval_interval)
