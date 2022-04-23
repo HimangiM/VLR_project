@@ -9,9 +9,9 @@ import torch.nn.functional as F
 from torchvision import transforms as T
 
 ###
-import pickle
-pairs_file = open("data.pkl", "rb") #path to dictionary
-pos_pair_dict = pickle.load(pairs_file)
+#import pickle
+#pairs_file = open("data.pkl", "rb") #path to dictionary
+#pos_pair_dict = pickle.load(pairs_file)
 ###
 
 # helper functions
@@ -188,7 +188,7 @@ class BYOL(nn.Module):
     ):
         super().__init__()
         self.net = net
-
+        print (self.net)
         # default SimCLR augmentation
 
         DEFAULT_AUG = torch.nn.Sequential(
@@ -224,7 +224,7 @@ class BYOL(nn.Module):
         self.to(device)
 
         # send a mock image tensor to instantiate singleton parameters
-        self.forward(torch.randn(2, 3, image_size, image_size, device=device))
+        # self.forward(torch.randn(2, 3, image_size, image_size, device=device))
 
     @singleton('target_encoder')
     def _get_target_encoder(self):
@@ -247,13 +247,14 @@ class BYOL(nn.Module):
         return_embedding = False,
         return_projection = True
     ):
-        assert not (self.training and x.shape[0] == 1), 'you must have greater than 1 sample when training, due to the batchnorm in the projection layer'
+        # assert not (self.training and x.shape[0] == 1), 'you must have greater than 1 sample when training, due to the batchnorm in the projection layer'
 
         if return_embedding:
             return self.online_encoder(x, return_projection = return_projection)
 
-        images = list(zip(*x))[0]
-        positive_pair = list(zip(*x))[1] ##check indices
+        images = x[0]
+        positive_pair = x[1] ##check indices
+
         image_one, image_two, image_three = self.augment1(images), self.augment2(images), self.augment2(positive_pair)
 
         online_proj_one, _ = self.online_encoder(image_one)
