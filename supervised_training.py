@@ -6,6 +6,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 from utils import *
 from tqdm import tqdm
+import wandb
 
 class Encoder(nn.Module):
     def __init__(self, input_shape, latent_dim, num_classes):
@@ -70,17 +71,18 @@ def load_model(model, load_path):
 
 def train_step(model, train_dataloader, optimizer, epoch):
     loss_l = []
-    # pbar = tqdm(train_dataloader)
-    # for imgs, target in pbar:
-    for imgs, target in tqdm(train_dataloader):
+    pbar = tqdm(train_dataloader)
+    # for imgs, target in train_dataloader:
+    for imgs, target in pbar:
         pred = model(imgs)
         criterion = nn.CrossEntropyLoss()
         loss = criterion(pred, target)
-        # loss_l.append(loss.item())
-        # pbar.set_description(f'Epoch={epoch}, Loss={np.mean(loss_l)}')
+        loss_l.append(loss.item())
+        pbar.set_description(f'Epoch={epoch}, Loss={np.mean(loss_l)}')
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+    wandb.log({'train_loss': np.mean(loss_l), 'train_step': epoch})
 
 def validate(model, test_loader, epoch):
     correct = 0
@@ -89,16 +91,19 @@ def validate(model, test_loader, epoch):
     with torch.no_grad():
         for data in test_loader:
             images, labels = data
-            outputs = model(images)
+            outputs = model(images.cuda())
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            correct += (predicted == labels).detach().cpu().sum().item()
 
     print(f'Accuracy of the network on the 10000 test images: {100 * correct // total} %')
+    wandb.log({'val_acc': np.mean(100 * correct // total), 'train_step': epoch})
 
 if __name__ == '__main__':
     model = Encoder((3, 32, 32), 128, 10)
-    load_model(model, 'improved-net.pt')
+    model.cuda()
+    load_model(model, 'byol_orig_b128_e20_lr3e4_2.pt')
+    wandb.init(project="16_824_project", entity = "ayushpandey34", name = 'train_byol_orig', reinit=True)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
 
