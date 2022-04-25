@@ -1,11 +1,10 @@
 import copy
 import random
 from functools import wraps
-
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+import numpy as np
 from torchvision import transforms as T
 
 ###
@@ -253,8 +252,12 @@ class BYOL(nn.Module):
             return self.online_encoder(x, return_projection = return_projection)
 
         images = x[0]
+        positive_pair = x[1] ##check indices
 
-        image_one, image_two = self.augment1(images), self.augment2(images)
+        if np.random.uniform() < 0.5:
+            image_one, image_two = self.augment1(images), self.augment2(images)
+        else:
+            image_one, image_two = self.augment1(images), self.augment2(positive_pair)
 
         online_proj_one, _ = self.online_encoder(image_one)
         online_proj_two, _ = self.online_encoder(image_two)

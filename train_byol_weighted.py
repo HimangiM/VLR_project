@@ -1,5 +1,5 @@
 import torch
-from byol_pytorch import BYOL
+from byol_pytorch_weighted import BYOL
 from torchvision import models
 import torch.nn as nn
 from utils import *
@@ -81,7 +81,8 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--num_epochs', type=int, default=20)
     parser.add_argument('--log_name', type=str)
-    parser.add_argument('--lr', type=float)
+    parser.add_argument('--lr', type=float, default=4e-4)
+    parser.add_argument('--pos_weight', type=float, default=0.5)
     args = parser.parse_args()
 
     writer = SummaryWriter(args.log_name)
@@ -94,7 +95,8 @@ if __name__ == '__main__':
     learner = BYOL(
         encoder_net,
         image_size = 32,
-        hidden_layer = 'fc'
+        hidden_layer = 'fc',
+        weight=args.pos_weight
     )
 
     opt = torch.optim.Adam(learner.parameters(), lr=args.lr)

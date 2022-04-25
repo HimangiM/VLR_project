@@ -184,7 +184,8 @@ class BYOL(nn.Module):
         augment_fn = None,
         augment_fn2 = None,
         moving_average_decay = 0.99,
-        use_momentum = True
+        use_momentum = True,
+        weight=0
     ):
         super().__init__()
         self.net = net
@@ -218,6 +219,7 @@ class BYOL(nn.Module):
         self.target_ema_updater = EMA(moving_average_decay)
 
         self.online_predictor = MLP(projection_size, projection_size, projection_hidden_size)
+        self.pos_weight = weight
 
         # get device of network and make wrapper same device
         device = get_module_device(net)
@@ -253,24 +255,31 @@ class BYOL(nn.Module):
             return self.online_encoder(x, return_projection = return_projection)
 
         images = x[0]
+        positive_pair = x[1] ##check indices
 
-        image_one, image_two = self.augment1(images), self.augment2(images)
+        image_one, image_two, image_three = self.augment1(images), self.augment2(images), self.augment2(positive_pair)
 
         online_proj_one, _ = self.online_encoder(image_one)
         online_proj_two, _ = self.online_encoder(image_two)
+        online_proj_three, _ = self.online_encoder(image_three)
 
         online_pred_one = self.online_predictor(online_proj_one)
         online_pred_two = self.online_predictor(online_proj_two)
+        online_pred_three = self.online_predictor(online_proj_three)
 
         with torch.no_grad():
             target_encoder = self._get_target_encoder() if self.use_momentum else self.online_encoder
             target_proj_one, _ = target_encoder(image_one)
             target_proj_two, _ = target_encoder(image_two)
+            target_proj_three, _ = target_encoder(image_three)
             target_proj_one.detach_()
             target_proj_two.detach_()
+            target_proj_three.detach_()
 
-        loss_one = loss_fn(online_pred_one, target_proj_two.detach())
-        loss_two = loss_fn(online_pred_two, target_proj_one.detach())
+        online_pred_custom = (1 - self.pos_weight) * online_pred_two + self.pos_weight * online_pred_three
+        target_proj_custom = (1 - self.pos_weight) * target_proj_two + self.pos_weight * target_proj_three
+        loss_one = loss_fn(online_pred_one, target_proj_custom.detach())
+        loss_two = loss_fn(online_pred_custom, target_proj_one.detach())
 
         loss = loss_one + loss_two
         return loss.mean()

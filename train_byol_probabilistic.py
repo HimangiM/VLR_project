@@ -1,5 +1,5 @@
 import torch
-from byol_pytorch import BYOL
+from byol_pytorch_probabilistic import BYOL
 from torchvision import models
 import torch.nn as nn
 from utils import *
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--num_epochs', type=int, default=20)
     parser.add_argument('--log_name', type=str)
-    parser.add_argument('--lr', type=float)
+    parser.add_argument('--lr', type=float, default=4e-4)
     args = parser.parse_args()
 
     writer = SummaryWriter(args.log_name)
