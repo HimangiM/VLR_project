@@ -15,22 +15,15 @@ from utils import *
 import wandb
 from custom_datasets import Trainset, Testset
 import pickle
+import argparse
 
 def ae_loss(model, x):
-    """ 
-    TODO 2.1.2: fill in MSE loss between x and its reconstruction. 
-    return loss, {recon_loss = loss} 
-    """
     pred, _ = model(x)
-    # print(pred.shape, x.shape)
     loss = torch.sum(torch.square(x - pred)) / x.shape[0]
     
     return loss, OrderedDict(recon_loss=loss)
 
-#Reference https://agustinus.kristia.de/techblog/2017/01/24/vae-pytorch/
 def vae_loss(model, x, beta = 1):
-    """TODO 2.2.2 : Fill in recon_loss and kl_loss. """
-
     pred, latent_variable = model(x)
     recon_loss = torch.sum(torch.square(pred - x)) / x.shape[0]
     mew = latent_variable[0]
@@ -48,8 +41,6 @@ def constant_beta_scheduler(target_val = 1):
     return _helper
 
 def linear_beta_scheduler(max_epochs=None, target_val = 1):
-    """TODO 2.3.2 : Fill in helper. The value returned should increase linearly 
-    from 0 at epoch 0 to target_val at epoch max_epochs """
     def _helper(epoch):
         return (epoch * target_val) / max_epochs
 
@@ -92,6 +83,7 @@ def get_val_metrics(model, loss_mode, val_loader):
 def main(log_dir, loss_mode = 'vae', beta_mode = 'constant', num_epochs = 20, batch_size = 256, latent_size = 256,
          target_beta_val = 1, grad_clip=1, lr = 1e-3, eval_interval = 5):
 
+    print(loss_mode, latent_size)
     os.makedirs('data/'+ log_dir, exist_ok = True)
     train_loader, val_loader = get_dataloaders()
 
@@ -101,7 +93,6 @@ def main(log_dir, loss_mode = 'vae', beta_mode = 'constant', num_epochs = 20, ba
     
     vis_x = next(iter(val_loader))[0][:36]
     
-    #beta_mode is for part 2.3, you can ignore it for parts 2.1, 2.2
     if beta_mode == 'constant':
         beta_fn = constant_beta_scheduler(target_val = target_beta_val) 
     elif beta_mode == 'linear':
@@ -132,36 +123,27 @@ def main(log_dir, loss_mode = 'vae', beta_mode = 'constant', num_epochs = 20, ba
     
         if epoch == num_epochs - 1:
             model.eval()
-            # import pdb; pdb.set_trace()
             train_set = Trainset()
             latent_vectors = {}
             for i in range(len(train_set)):
                 img, _, _ = train_set[i]
-                z = get_latent_vectors(model, img.unsqueeze(0), '').detach().cpu().numpy()[0]
+                z = get_latent_vectors(model, img.unsqueeze(0)).detach().cpu().numpy()[0]
                 latent_vectors[i] = z
 
-            with open('latent_vectors.pickle', 'wb') as file_:
-                pickle.dump(latent_vectors, file_, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(f'latent_vectors_{loss_mode}.pickle', 'wb') as file:
+                pickle.dump(latent_vectors, file, protocol=pickle.HIGHEST_PROTOCOL)
                 
 
-
 if __name__ == '__main__':
-    #TODO: Experiments to run : 
-    #2.1 - Auto-Encoder
-    #Run for latent_sizes 16, 128 and 1024
-    latent_dim = 128
-    beta_val = 1.2
-    # suffix = str(beta_val)
-    suffix = 'linear'
-    wandb.init(project="vlr_project", entity = "ayushpandey34", name = 'ae' + str(suffix) , reinit=True)
-    main('ae_latent' + str(latent_dim), loss_mode = 'ae',  num_epochs = 20, latent_size = latent_dim)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode')
+    parser.add_argument('latent_dim', type = int)
+    args = parser.parse_args()
 
-    #Q 2.2 - Variational Auto-Encoder
-    # main('vae_latent' + str(latent_dim), loss_mode = 'vae', num_epochs = 20, latent_size = latent_dim)
+    latent_dim = args.latent_dim  
+    wandb.init(project="vlr_project", entity = "ayushpandey34", name = args.mode, reinit=True)
+    if args.mode == 'ae':
+        main('ae_latent' + str(latent_dim), loss_mode = 'ae',  num_epochs = 100, latent_size = latent_dim)
+    elif args.mode == 'vae':
+        main('vae_latent' + str(latent_dim), loss_mode = 'vae', num_epochs = 100, latent_size = latent_dim)
 
-    #Q 2.3.1 - Beta-VAE (constant beta)
-    #Run for beta values 0.8, 1.2
-    # main('vae_latent1024_beta_constant' + str(beta_val), loss_mode = 'vae', beta_mode = 'constant', target_beta_val = beta_val, num_epochs = 20, latent_size = latent_dim)
-
-    #Q 2.3.2 - VAE with annealed beta (linear schedule)
-    # main('vae_latent1024_beta_linear1', loss_mode = 'vae', beta_mode = 'linear', target_beta_val = 1, num_epochs = 20, latent_size = latent_dim)

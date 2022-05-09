@@ -84,7 +84,7 @@ def vis_recons(model, x, _file):
 
     save_samples(reconstructions, _file+'_recons.png')
 
-def get_latent_vectors(model, x, _file):
+def get_latent_vectors(model, x):
 
     with torch.no_grad():
         x = preprocess_data(x)
