@@ -256,7 +256,7 @@ class BYOL(nn.Module):
         images = x[0]
         positive_pair = x[1] ##check indices
 
-        if np.random.uniform() < 0.5:
+        if np.random.uniform() < self.prob:
             image_one, image_two = self.augment1(images), self.augment2(images)
         else:
             image_one, image_two = self.augment1(images), self.augment2(positive_pair)
