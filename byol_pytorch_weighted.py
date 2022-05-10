@@ -185,7 +185,7 @@ class BYOL(nn.Module):
         augment_fn2 = None,
         moving_average_decay = 0.99,
         use_momentum = True,
-        weight=0
+        weight=0.5
     ):
         super().__init__()
         self.net = net
