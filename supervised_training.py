@@ -107,6 +107,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='BYoL Classification')
     parser.add_argument('--model_path', type=str)
     parser.add_argument('--log_name', type=str)
+    parser.add_argument('--num_epochs', type=int)
     args = parser.parse_args()
 
     writer = SummaryWriter(args.log_name)
@@ -118,7 +119,7 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
 
-    num_epochs = 20
+    num_epochs = args.num_epochs
     train_dataloader, test_dataloader = get_dataloaders(batch_size = 32)
     for epoch in range(num_epochs):
         print(f'Epoch: {epoch}')
