@@ -183,7 +183,8 @@ class BYOL(nn.Module):
         augment_fn = None,
         augment_fn2 = None,
         moving_average_decay = 0.99,
-        use_momentum = True
+        use_momentum = True,
+        prob=0.5
     ):
         super().__init__()
         self.net = net
@@ -217,6 +218,7 @@ class BYOL(nn.Module):
         self.target_ema_updater = EMA(moving_average_decay)
 
         self.online_predictor = MLP(projection_size, projection_size, projection_hidden_size)
+        self.prob = prob
 
         # get device of network and make wrapper same device
         device = get_module_device(net)
