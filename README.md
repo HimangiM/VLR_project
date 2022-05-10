@@ -55,7 +55,7 @@ We have used Bring Your Own Latent (BYOL) as a self-supervised learning framewor
 To train BYOL with a probabilistic sampling run (we sample with a probability of 0.5):
 
 ```python
-python train_byol_probablistic.py
+python train_byol_probabilistic.py --lr 0.0003 --batch_size 128 --num_epochs 20 --log_name byol_prob05_b128_e20_lr3e4_new --prob 0.5
 ```
 
 **2. Second approach:** We run both traditional augmented image and nearest neighbor image through a momentum encoder model to get a latent vector from both images. We then resultant target vector using a weighted average of the two vectors and use that vector for training BYOL. 
@@ -63,7 +63,7 @@ python train_byol_probablistic.py
 To train BYOL with a weighted average of the two vectors (default weight for the vector corresponding to the augmented image is 0.5):
 
 ```python
-python byol_pytorch_weighted.py  --pos_weight 0.5
+python train_byol_weighted.py --lr 0.0003 --batch_size 128 --num_epochs 20 --log_name byol_weighted05_b128_e20_lr3e4_new --pos_weight 0.5
 ```
 
 Additionally, we run a baseline BYOL network to compare the efficacy of our approaches on the downstream task of image classification.
@@ -71,5 +71,5 @@ Additionally, we run a baseline BYOL network to compare the efficacy of our appr
 To train baseline BYOL:
 
 ```python
-python train_byol.py 
+python train_byol.py --lr 0.0003 --batch_size 128 --num_epochs 20 --log_name byol_orig_b128_e20_lr3e4_new 
 ```
