@@ -39,7 +39,7 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         x = self.convs(x)
-        x = self.fc(x.view(x.shape[0], -1))
+        x = self.fc(x.reshape(x.shape[0], -1))
 
         return x
 
@@ -52,7 +52,7 @@ class VAEEncoder(Encoder):
     
     def forward(self, x):
         x = self.convs(x)
-        x = self.fc(x.view(x.shape[0], -1))
+        x = self.fc(x.reshape(x.shape[0], -1))
         return (x[:, :self.latent_dim], x[:, self.latent_dim: ])
 
 
@@ -66,7 +66,7 @@ def training_loop(learner, optimizer, train_dataset, dict_positive, train_datalo
             positive_imgs.append(train_dataset.__getitem__(dict_positive[idx.item()])[0])
 
         positive_imgs = torch.stack(positive_imgs, dim = 0)
-        loss = learner((x, positive_imgs))
+        loss = learner((x.cuda(), positive_imgs.cuda()))
         loss_l.append(loss.item())
         writer.add_scalar('Loss/Train', np.mean(loss_l), epoch)
         pbar.set_description(f'Epoch={epoch}, Loss={np.mean(loss_l)}')
@@ -83,10 +83,12 @@ if __name__ == '__main__':
     parser.add_argument('--log_name', type=str)
     parser.add_argument('--lr', type=float, default=4e-4)
     parser.add_argument('--pos_weight', type=float, default=0.5)
+    parser.add_argument('--nn_file', type=str)
     args = parser.parse_args()
 
     writer = SummaryWriter(args.log_name)
     encoder_net = Encoder((3, 32, 32), 128)
+    encoder_net.cuda()
 
     train_dataset = Trainset()
     test_dataset = Testset()
@@ -103,7 +105,8 @@ if __name__ == '__main__':
 
     num_epochs = args.num_epochs
 
-    dict_positive = pkl.load(open('nearest_neighbor.pickle', 'rb'))
+    # dict_positive = pkl.load(open('nearest_neighbor.pickle', 'rb'))
+    dict_positive = pkl.load(open(args.nn_file, 'rb'))
     for epoch in range(num_epochs):
         training_loop(learner, opt, train_dataset, dict_positive, train_dataloader, epoch, writer)
 
