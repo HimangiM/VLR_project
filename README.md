@@ -4,6 +4,8 @@ Name: Aditya Ghuge, Ayush Pandey, Himangi Mittal
 
 Group: 13
 
+Here we discuss a few key concepts and details related to running scripts for the tasks outlined in Our proposed method described in detail [here](https://sites.google.com/andrew.cmu.edu/group13/proposed-method?authuser=0). 
+
 ## Convert image to embeddings
 
 To ensure that our network learns representations that are more invariant to view, deformation, and illumination changes than BYOL we try to get include a positive image that belongs to the same category in our training.  To do this we first try to learn a latent space that is semantically rich and continuous. We hypothesize that images belonging to the same category lie closer to each other in this latent space and images belonging to different categories lie further apart. We try 3 different learning paradigms to learn this latent space:
