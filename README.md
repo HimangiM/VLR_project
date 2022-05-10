@@ -52,7 +52,7 @@ We have used Bring Your Own Latent (BYOL) as a self-supervised learning framewor
 
 **1. First approach:** We randomly sample a positive pair image from the traditional image augmentation image or the nearest neighbor pair with some probability. We hypothesize that by doing so we force our model to learn only from the semantically relevant part of the images and get better results.
 
-To train BYOL with a probabilistic sampling run (we sample with a probability of 0.5):
+To train BYOL with a probabilistic sampling run (default probability is 0.5):
 
 ```python
 python train_byol_probabilistic.py --lr 0.0003 --batch_size 128 --num_epochs 20 --log_name byol_prob05_b128_e20_lr3e4_new --prob 0.5
